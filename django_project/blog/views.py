@@ -11,21 +11,25 @@ from django.views.generic import (
 from .models import Post
 
 
+# Initial function who render the home view. It was replaced by PostListView class
 def home(request):
     context = {
-        'posts': Post.objects.all(),
+        'posts': Post.objects.all()[:5],
+        'lastes': Post.objects.all().order_by('-id')[:3]
     }
     return render(request, 'blog/home.html', context)
 
 
-def last(request):
-    context = {
-        'lastes': Post.objects.all().order_by('-id')[:3]
-    }
-    return render(request, 'blog/slide_bar.html', context)
+class SlideBar:
+    lastes = Post.objects.all().order_by('-date_posted')[:3]
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['lastes'] = self.lastes
+        return context
 
 
-class PostListView(ListView):
+class PostListView(SlideBar, ListView):
     model = Post
     template_name = 'blog/home.html'  # <app>/<model>_<viewtype>.html
     context_object_name = 'posts'
@@ -33,15 +37,7 @@ class PostListView(ListView):
     paginate_by = 5  # pagination functionality (from django.core.paginator import Paginator)
 
 
-class LastPostListView(ListView):
-    model = Post
-    template_name = 'blog/slide_bar.html'  # <app>/<model>_<viewtype>.html
-    context_object_name = 'posts'
-    ordering = ['-date_posted']
-    paginate_by = 3  # pagination functionality (from django.core.paginator import Paginator)
-
-
-class UserPostListView(ListView):
+class UserPostListView(SlideBar, ListView):
     model = Post
     template_name = 'blog/user_posts.html'  # <app>/<model>_<viewtype>.html
     context_object_name = 'posts'
@@ -53,11 +49,11 @@ class UserPostListView(ListView):
         return Post.objects.filter(author=user).order_by('-date_posted')
 
 
-class PostDetailView(DetailView):
+class PostDetailView(SlideBar, DetailView):
     model = Post
 
 
-class PostCreateView(LoginRequiredMixin, CreateView):
+class PostCreateView(SlideBar, LoginRequiredMixin, CreateView):
     model = Post
     fields = ['title', 'content']
 
@@ -66,7 +62,7 @@ class PostCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class PostUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+class PostUpdateView(SlideBar, LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Post
     fields = ['title', 'content']
 
@@ -81,7 +77,7 @@ class PostUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         return False
 
 
-class PostDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+class PostDeleteView(SlideBar, LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Post
     success_url = '/'
 
@@ -93,4 +89,8 @@ class PostDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
 
 def about(request):
-    return render(request, 'blog/about.html', {'title': 'About this blog'})
+    context = {
+        'title': 'About this blog',
+        'lastes': Post.objects.all().order_by('-id')[:3],
+    }
+    return render(request, 'blog/about.html', context)
